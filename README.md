@@ -1,7 +1,7 @@
 # FastFood API 🍔
 
 API simples de sistema de pedidos (FastFood) construída em **Node.js + Express** com **MySQL**.  
-Tudo roda **100% local** via Docker Compose, sem dependências de serviços em nuvem.
+Tudo roda **100% local** via Docker Compose.
 
 ---
 
