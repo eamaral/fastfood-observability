@@ -1,0 +1,37 @@
+{
+  "name": "fastfood-observability",
+  "version": "1.0.0",
+  "description": "API simples de pedidos FastFood para aulas de observability (Prometheus, Grafana, Alloy), focada em execução local via docker-compose.",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js",
+    "lint": "echo \"No linter configured\""
+  },
+  "keywords": [
+    "fastfood",
+    "observability",
+    "prometheus",
+    "grafana",
+    "node",
+    "express"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "cors": "^2.8.5",
+    "express": "^4.21.1",
+    "helmet": "^8.0.0",
+    "mysql2": "^3.14.0",
+    "morgan": "^1.10.0",
+    "sequelize": "^6.37.6",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  }
+}
+
+
