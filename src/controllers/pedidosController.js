@@ -1,4 +1,5 @@
 const { Pedido, Cliente, Produto, PedidoItem } = require('../models');
+const { ordersTotal } = require('../metrics');
 
 async function listar(req, res) {
   const pedidos = await Pedido.findAll({
@@ -52,6 +53,9 @@ async function criar(req, res) {
     total,
     status: 'CRIADO'
   });
+
+  // Incrementar métrica de pedidos
+  ordersTotal.inc({ status: pedido.status });
 
   for (const item of itensCalculados) {
     await PedidoItem.create({

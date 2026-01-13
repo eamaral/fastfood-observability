@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
-const client = require('prom-client');
+const { register } = require('./metrics');
 
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./swagger');
@@ -10,23 +10,6 @@ const swaggerSpec = require('./swagger');
 const routes = require('./routes');
 
 const app = express();
-
-// Métricas do sistema (CPU/Memória)
-const collectDefaultMetrics = client.collectDefaultMetrics;
-collectDefaultMetrics();
-
-// Contador de pedidos
-const ordersTotal = new client.Counter({
-    name: 'fastfood_orders_total',
-    help: 'Total de pedidos',
-    labelNames: ['status'] // Label para o status do pedido
-});
-
-const httpRequestDuration = new client.Histogram({
-    name: 'fastfood_http_request_duration_seconds',
-    help: 'Duração das requisições HTTP',
-    buckets: [0.1, 0.5, 1, 2.5, 5, 10]
-});
 
 app.use(helmet());
 app.use(cors());
@@ -50,8 +33,8 @@ app.get('/health', (req, res) => {
 
 // Expor as métricas
 app.get('/metrics', async (req, res) => {
-  res.set('Content-Type', client.register.contentType);
-  const metrics = await client.register.metrics();
+  res.set('Content-Type', register.contentType);
+  const metrics = await register.metrics();
   res.end(metrics);
 });
 
