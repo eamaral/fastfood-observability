@@ -30,10 +30,10 @@ services:
     restart: unless-stopped
 
   prometheus:
-    image: prom/prometheus:latest
+    image: prom/prometheus:v2.54.1
     container_name: fastfood-observability-prometheus
     ports:
-      - "9093:9090"
+      - "9099:9090"
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
     command:
@@ -42,7 +42,20 @@ services:
       - api
     restart: unless-stopped
 
+  grafana:
+    image: grafana/grafana:latest
+    container_name: fastfood-observability-grafana
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
 volumes:
   db_data:
-
-

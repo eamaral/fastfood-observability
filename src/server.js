@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
-const { register } = require('./metrics');
+const { register, httpRequestTotal, httpRequestDuration } = require('./metrics');
 
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./swagger');
@@ -15,6 +15,25 @@ app.use(helmet());
 app.use(cors());
 app.use(express.json());
 app.use(morgan('dev'));
+
+// Middleware de métricas HTTP
+app.use((req, res, next) => {
+  const start = Date.now();
+
+  res.on('finish', () => {
+    const duration = (Date.now() - start) / 1000;
+    const route = req.route?.path || req.path;
+    //Incrementa o contador de requisições
+    httpRequestTotal.inc({
+      method: req.method,
+      route,
+      status: res.statusCode
+    });
+    //Registra a duração da requisição
+    httpRequestDuration.observe(duration);
+  });
+  next();
+});
 
 app.use((req, res, next) => {
   console.log(`[REQ] ${req.method} ${req.originalUrl}`);
