@@ -1,0 +1,9 @@
+apiVersion: 1
+providers:
+  - name: 'fastfood-provider'
+    folder: 'Fastfood'
+    type: file
+    options:
+      path: /var/lib/grafana/dashboards
+    
+    

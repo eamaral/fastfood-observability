@@ -1,4 +1,5 @@
 const { Pedido, Cliente, Produto, PedidoItem } = require('../models');
+const { ordersTotal } = require('../metrics');
 
 async function listar(req, res) {
   const pedidos = await Pedido.findAll({
@@ -69,6 +70,8 @@ async function criar(req, res) {
       { model: Produto }
     ]
   });
+
+  ordersTotal.inc({ status: 'CRIADO' });
 
   return res.status(201).json(pedidoCompletos);
 }
