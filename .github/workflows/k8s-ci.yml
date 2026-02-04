@@ -1,0 +1,87 @@
+name: k8s-ci-fastfood
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["main"]
+
+jobs:
+  deploy-kind:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit tests (se existir)
+        run: npm test --if-present
+
+      - name: Create KinD cluster
+        uses: helm/kind-action@v1.10.0
+        with:
+          cluster_name: fastfood
+
+      - name: Build Docker image
+        run: docker build -t fastfood-api:1.0.0 .
+
+      - name: Load image into KinD
+        run: kind load docker-image fastfood-api:1.0.0 --name fastfood
+
+      - name: Create namespace
+        run: kubectl create namespace fastfood || true
+
+      - name: Create Grafana Cloud secret
+        run: |
+          kubectl -n fastfood delete secret grafana-cloud-prom --ignore-not-found
+          kubectl -n fastfood create secret generic grafana-cloud-prom \
+            --from-literal=url="${{ secrets.GRAFANA_CLOUD_PROM_URL }}" \
+            --from-literal=username="${{ secrets.GRAFANA_CLOUD_PROM_USER }}" \
+            --from-literal=password="${{ secrets.GRAFANA_CLOUD_PROM_API_KEY }}"
+
+      - name: Apply manifests
+        run: |
+          kubectl -n fastfood apply -f k8s/app/mysql.yaml
+          kubectl -n fastfood apply -f k8s/app/deployment.yaml
+          kubectl -n fastfood apply -f k8s/app/service.yaml
+          kubectl -n fastfood apply -f k8s/infra/alloy-configmap.yaml
+          kubectl -n fastfood apply -f k8s/infra/alloy.yaml
+
+      - name: Stamp deploy metadata
+        run: |
+          TS="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          COMMIT="$(echo "${GITHUB_SHA}" | cut -c1-7)"
+
+          kubectl -n fastfood patch deployment fastfood-api -p "{
+            \"spec\": {
+              \"template\": {
+                \"metadata\": {
+                  \"annotations\": {
+                    \"deploy.timestamp\": \"${TS}\",
+                    \"deploy.commit\": \"${COMMIT}\"
+                  }
+                }
+              }
+            }
+          }"
+
+      - name: Wait rollout
+        run: |
+          kubectl -n fastfood rollout status deployment/mysql --timeout=180s
+          kubectl -n fastfood rollout status deployment/fastfood-api --timeout=180s
+          kubectl -n fastfood rollout status deployment/grafana-alloy --timeout=180s
+
+      - name: Smoke test (health + metrics)
+        run: |
+          kubectl -n fastfood port-forward svc/fastfood-api-service 3000:3000 &
+          sleep 2
+          curl -sS http://localhost:3000/health
+          curl -sS http://localhost:3000/metrics | head -20
+          curl -sS http://localhost:3000/metrics | grep fastfood_http_requests_total
