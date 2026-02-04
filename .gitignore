@@ -3,3 +3,6 @@ node_modules/
 package-lock.json
 *.log
 .DS_Store
+
+# Kubernetes secrets (contém credenciais)
+k8s/infra/grafana-cloud-secret.yaml
