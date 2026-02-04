@@ -1,0 +1,84 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alloy-config
+  namespace: fastfood
+data:
+  config.alloy: |
+    // ======================================================
+    // 1) LER CREDENCIAIS DO GRAFANA CLOUD (Secret como arquivo)
+    // ======================================================
+    local.file "gc_url" {
+      filename = "/etc/secrets/url"
+    }
+
+    local.file "gc_username" {
+      filename = "/etc/secrets/username"
+    }
+
+    local.file "gc_password" {
+      filename = "/etc/secrets/password"
+    }
+
+    // ======================================================
+    // 2) DESCOBRIR PODS NO NAMESPACE "fastfood"
+    // ======================================================
+    discovery.kubernetes "pods" {
+      role = "pod"
+      namespaces {
+        names = ["fastfood"]
+      }
+    }
+
+    // ======================================================
+    // 3) FILTRAR SOMENTE PODS COM prometheus.io/scrape="true"
+    //    E CONSTRUIR O ENDEREÇO (IP:PORT) + PATH
+    // ======================================================
+    discovery.relabel "pods" {
+      targets = discovery.kubernetes.pods.targets
+
+      // Mantém só pods anotados para scrape
+      rule {
+        source_labels = ["__meta_kubernetes_pod_annotation_prometheus_io_scrape"]
+        regex         = "true"
+        action        = "keep"
+      }
+
+      // Path das métricas vindo da annotation prometheus.io/path
+      rule {
+        source_labels = ["__meta_kubernetes_pod_annotation_prometheus_io_path"]
+        target_label  = "__metrics_path__"
+        regex         = "(.+)"
+      }
+
+      // Monta __address__ = POD_IP:PORT (annotation prometheus.io/port)
+      rule {
+        source_labels = [
+          "__meta_kubernetes_pod_ip",
+          "__meta_kubernetes_pod_annotation_prometheus_io_port",
+        ]
+        target_label = "__address__"
+        regex        = "(.+);(.+)"
+        replacement  = "$1:$2"
+      }
+    }
+
+    // ======================================================
+    // 4) SCRAPE DAS MÉTRICAS + ENVIO PARA O GRAFANA CLOUD
+    // ======================================================
+    prometheus.scrape "pods" {
+      targets         = discovery.relabel.pods.output
+      scrape_interval = "15s"
+      forward_to      = [prometheus.remote_write.grafana_cloud.receiver]
+    }
+
+    prometheus.remote_write "grafana_cloud" {
+      endpoint {
+        url = local.file.gc_url.content
+
+        basic_auth {
+          username = local.file.gc_username.content
+          password = local.file.gc_password.content
+        }
+      }
+    }
